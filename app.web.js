@@ -2393,6 +2393,8 @@
           state.manifest.unshift(entry);
           populateProjectSelector();
           $('ubr-adm-project-status').textContent = '✅ Cargado. Publicando en servidor...';
+          // Asegurar que parsed tiene id antes de publicar
+          if (!parsed.id) parsed.id = id;
           // Auto-publicar en servidor para que todos los viewers lo vean
           publishProject(parsed)
             .then(function (res) {
@@ -2400,8 +2402,8 @@
               showPublishStatus('✅ Publicado para todos: ' + name, false);
               setTimeout(function () { loadManifest(); }, 800);
             })
-            .catch(function () {
-              $('ubr-adm-project-status').textContent = '⚠️ Guardado solo en este navegador. Inicia server.py para publicar a todos.';
+            .catch(function (err) {
+              $('ubr-adm-project-status').textContent = '❌ Error al publicar: ' + String(err && err.message ? err.message : err);
             });
         } catch (err) {
           $('ubr-adm-project-status').textContent = '❌ Error al leer JSON: ' + String(err && err.message ? err.message : err);
@@ -2532,8 +2534,8 @@
           showPublishStatus('✅ Publicado para todos: ' + name, false);
           setTimeout(function () { loadManifest(); }, 800);
         })
-        .catch(function () {
-          $('ubr-adm-project-status').textContent = '⚠️ No se pudo publicar en servidor. Se descargó el JSON para publicación manual.';
+        .catch(function (err) {
+          $('ubr-adm-project-status').textContent = '❌ Error al publicar: ' + String(err && err.message ? err.message : err);
         });
     };
   }
