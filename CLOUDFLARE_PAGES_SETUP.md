@@ -8,14 +8,15 @@ Este proyecto ya incluye:
 
 ## 1) Crear bucket R2
 1. Cloudflare Dashboard -> R2 -> Create bucket
-2. Nombre recomendado: `ubrviewer-data`
+2. Nombre recomendado: `ubrviewer-store-global`
+3. No cambiar ubicacion, region o jurisdiction al crearlo
 
 ## 2) Configurar Pages bindings
-En el proyecto Pages (`ubrviewer.pages.dev`):
+En el proyecto Pages:
 
 1. Settings -> Functions -> R2 bucket bindings
-- Variable name: `UBR_DATA`
-- Bucket: `ubrviewer-data`
+- Variable name: `UBR_STORE`
+- Bucket: `ubrviewer-store-global`
 
 2. Settings -> Environment variables
 - Name: `ADMIN_API_KEY`
@@ -28,7 +29,7 @@ En el proyecto Pages (`ubrviewer.pages.dev`):
 
 ## 4) Primera carga de datos
 Opcion A (recomendada): desde la UI Admin
-1. Entrar en `https://ubrviewer.pages.dev`
+1. Entrar en la URL publica activa del proyecto en Pages
 2. Abrir panel Admin
 3. Al publicar por primera vez pedira `API Key Admin (Cloudflare)`
 4. Pegar el valor de `ADMIN_API_KEY`
@@ -39,7 +40,7 @@ Opcion B (manual): subir objetos directo a R2
 - `projects/<id>.json`
 
 ## 5) Pruebas rapidas
-1. GET `https://ubrviewer.pages.dev/api/manifest`
+1. GET `/api/manifest` en la URL publica activa del proyecto
 - Debe devolver `[]` o una lista JSON
 
 2. Publicar desde Admin un proyecto nuevo
