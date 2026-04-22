@@ -1,0 +1,7 @@
+compatibility_date = "2024-01-01"
+
+[[r2_buckets]]
+binding = "UBR_STORE"
+bucket_name = "ubrviewer-data"
+# Ajusta este valor si tu bucket usa otra jurisdicción distinta
+jurisdiction = "eu"
