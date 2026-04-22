@@ -17,10 +17,15 @@ function getDesc(project) {
 
 export async function onRequestPost(context) {
   const { env, request } = context;
+  const store = env && (env.UBR_STORE || env.UBR_DATA);
 
   const apiKey = String(request.headers.get('x-admin-key') || '').trim();
   if (!env.ADMIN_API_KEY || apiKey !== String(env.ADMIN_API_KEY)) {
     return json({ ok: false, error: 'no autorizado' }, 401);
+  }
+
+  if (!store || typeof store.get !== 'function' || typeof store.put !== 'function') {
+    return json({ ok: false, error: 'binding R2 no configurado' }, 500);
   }
 
   let payload;
@@ -42,11 +47,11 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: 'project.id requerido' }, 400);
   }
 
-  await env.UBR_DATA.put('projects/' + id + '.json', JSON.stringify(project, null, 2), {
+  await store.put('projects/' + id + '.json', JSON.stringify(project, null, 2), {
     httpMetadata: { contentType: 'application/json' }
   });
 
-  const manifestObj = await env.UBR_DATA.get('manifest.json');
+  const manifestObj = await store.get('manifest.json');
   let manifest = [];
   if (manifestObj) {
     try {
@@ -71,7 +76,7 @@ export async function onRequestPost(context) {
   });
   manifest.unshift(entry);
 
-  await env.UBR_DATA.put('manifest.json', JSON.stringify(manifest, null, 2), {
+  await store.put('manifest.json', JSON.stringify(manifest, null, 2), {
     httpMetadata: { contentType: 'application/json' }
   });
 

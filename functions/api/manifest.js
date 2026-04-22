@@ -5,13 +5,15 @@ export async function onRequestGet(context) {
     'cache-control': 'no-store'
   };
 
-  if (!env || !env.UBR_DATA || typeof env.UBR_DATA.get !== 'function') {
+  const store = env && (env.UBR_STORE || env.UBR_DATA);
+
+  if (!store || typeof store.get !== 'function') {
     return new Response('[]', { status: 200, headers });
   }
 
   let obj;
   try {
-    obj = await env.UBR_DATA.get('manifest.json');
+    obj = await store.get('manifest.json');
   } catch (_e) {
     return new Response('[]', { status: 200, headers });
   }

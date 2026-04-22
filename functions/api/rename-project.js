@@ -10,10 +10,15 @@ function json(body, status) {
 
 export async function onRequestPost(context) {
   const { env, request } = context;
+  const store = env && (env.UBR_STORE || env.UBR_DATA);
 
   const apiKey = String(request.headers.get('x-admin-key') || '').trim();
   if (!env.ADMIN_API_KEY || apiKey !== String(env.ADMIN_API_KEY)) {
     return json({ ok: false, error: 'no autorizado' }, 401);
+  }
+
+  if (!store || typeof store.get !== 'function' || typeof store.put !== 'function') {
+    return json({ ok: false, error: 'binding R2 no configurado' }, 500);
   }
 
   let payload;
@@ -29,7 +34,7 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: 'id y name requeridos' }, 400);
   }
 
-  const manifestObj = await env.UBR_DATA.get('manifest.json');
+  const manifestObj = await store.get('manifest.json');
   let manifest = [];
   if (manifestObj) {
     try {
@@ -53,17 +58,17 @@ export async function onRequestPost(context) {
     return json({ ok: false, error: 'proyecto no encontrado en manifest' }, 404);
   }
 
-  await env.UBR_DATA.put('manifest.json', JSON.stringify(manifest, null, 2), {
+  await store.put('manifest.json', JSON.stringify(manifest, null, 2), {
     httpMetadata: { contentType: 'application/json' }
   });
 
   const pKey = 'projects/' + id + '.json';
-  const projectObj = await env.UBR_DATA.get(pKey);
+  const projectObj = await store.get(pKey);
   if (projectObj) {
     try {
       const project = JSON.parse(await projectObj.text());
       project.name = name;
-      await env.UBR_DATA.put(pKey, JSON.stringify(project, null, 2), {
+      await store.put(pKey, JSON.stringify(project, null, 2), {
         httpMetadata: { contentType: 'application/json' }
       });
     } catch (_) {}
