@@ -2336,6 +2336,8 @@
             '<h3>Añadir proyecto JSON (local)</h3>' +
             '<input id="ubr-adm-project-json" type="file" accept=".json,application/json">' +
             '<button id="ubr-admin-open-json" type="button">Agregar al selector</button>' +
+            '<button id="ubr-admin-migrate-locals" type="button" class="ubr-adm-btn-sm">Migrar locales al servidor</button>' +
+            '<button id="ubr-admin-export-locals" type="button" class="ubr-adm-btn-sm">Exportar locales (backup)</button>' +
             '<div id="ubr-adm-project-status" class="ubr-adm-status"></div>' +
           '</section>' +
 
@@ -2362,6 +2364,45 @@
       applyRoleUiMode();
       closeAdminModal();
     };
+
+    function readLocalProjects() {
+      var locals = [];
+      try { locals = JSON.parse(localStorage.getItem('ubr_local_projects') || '[]'); } catch (_) { locals = []; }
+      return Array.isArray(locals) ? locals : [];
+    }
+
+    function normalizeLocalProjectForPublish(entry, idx) {
+      var source = entry && entry.inlineProject;
+      if (!source || typeof source !== 'object') {
+        return { ok: false, error: 'sin inlineProject', id: String(entry && entry.id || '') };
+      }
+
+      // Clonar para evitar mutar el cache local del navegador.
+      var project;
+      try {
+        project = JSON.parse(JSON.stringify(source));
+      } catch (_) {
+        return { ok: false, error: 'no se pudo clonar proyecto local', id: String(entry && entry.id || '') };
+      }
+
+      var fallbackId = 'local-' + Date.now() + '-' + (idx + 1);
+      var id = String(project.id || (entry && entry.id) || fallbackId).trim().replace(/\s+/g, '-');
+      if (!id) return { ok: false, error: 'id vacío', id: '' };
+
+      var name = String(project.name || (entry && entry.name) || id).trim();
+      project.id = id;
+      project.name = name || id;
+
+      if (!Array.isArray(project.cameras)) project.cameras = [];
+      if (!Array.isArray(project.lists)) project.lists = [];
+
+      return {
+        ok: true,
+        id: id,
+        name: project.name,
+        project: project,
+      };
+    }
 
     $('ubr-admin-open-json').onclick = function () {
       var f = $('ubr-adm-project-json');
@@ -2410,6 +2451,105 @@
         }
       };
       reader.readAsText(file);
+    };
+
+    $('ubr-admin-export-locals').onclick = function () {
+      var locals = readLocalProjects();
+      if (!locals.length) {
+        $('ubr-adm-project-status').textContent = 'No hay proyectos locales para exportar.';
+        return;
+      }
+
+      var payload = {
+        exportedAt: new Date().toISOString(),
+        count: locals.length,
+        projects: locals,
+      };
+
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'ubr-local-projects-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      $('ubr-adm-project-status').textContent = '✅ Backup exportado (' + locals.length + ' proyecto(s)).';
+    };
+
+    $('ubr-admin-migrate-locals').onclick = function () {
+      var locals = readLocalProjects();
+      if (!locals.length) {
+        $('ubr-adm-project-status').textContent = 'No hay proyectos locales para migrar.';
+        return;
+      }
+
+      var normalized = [];
+      var invalid = [];
+      locals.forEach(function (entry, idx) {
+        var n = normalizeLocalProjectForPublish(entry, idx);
+        if (!n.ok) {
+          invalid.push((n.id || 'sin-id') + ': ' + n.error);
+          return;
+        }
+        normalized.push({
+          id: n.id,
+          name: n.name,
+          project: n.project,
+          meta: {
+            id: n.id,
+            name: n.name,
+            date: String((entry && entry.date) || new Date().toISOString().slice(0, 10)),
+            tags: Array.isArray(entry && entry.tags) ? entry.tags : []
+          }
+        });
+      });
+
+      if (!normalized.length) {
+        $('ubr-adm-project-status').textContent = '❌ No hay proyectos locales válidos para migrar.';
+        return;
+      }
+
+      var failures = [];
+      var done = 0;
+      var total = normalized.length;
+      $('ubr-adm-project-status').textContent = 'Migrando ' + total + ' proyecto(s)...';
+
+      function step(i) {
+        if (i >= normalized.length) {
+          var okCount = done - failures.length;
+          var msg = '✅ Migración finalizada: ' + okCount + '/' + total + ' publicados.';
+          if (invalid.length) msg += ' Omitidos inválidos: ' + invalid.length + '.';
+          if (failures.length) msg += ' Fallos: ' + failures.length + '.';
+          $('ubr-adm-project-status').textContent = msg;
+
+          if (failures.length || invalid.length) {
+            $('ubr-adm-result').textContent =
+              (invalid.length ? ('Inválidos:\n- ' + invalid.join('\n- ') + '\n\n') : '') +
+              (failures.length ? ('Fallos al publicar:\n- ' + failures.join('\n- ')) : '');
+          }
+
+          showPublishStatus(msg, failures.length > 0);
+          setTimeout(function () { loadManifest(); }, 800);
+          return;
+        }
+
+        var item = normalized[i];
+        $('ubr-adm-project-status').textContent =
+          'Migrando ' + (i + 1) + '/' + total + ': ' + item.name + '...';
+
+        publishProject(item.project, item.meta)
+          .then(function () {
+            done += 1;
+            step(i + 1);
+          })
+          .catch(function (err) {
+            done += 1;
+            failures.push(item.id + ': ' + String(err && err.message ? err.message : err));
+            step(i + 1);
+          });
+      }
+
+      step(0);
     };
 
     /* Camera rows */
