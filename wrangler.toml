@@ -1,0 +1,23 @@
+name = "ubrviewer"
+main = "functions/index.js"
+compatibility_date = "2026-04-22"
+pages_build_caching = true
+
+[build]
+command = ""
+cwd = "."
+watch_paths = []
+
+[env.production]
+name = "ubrviewer"
+
+[[r2_buckets]]
+binding = "UBR_DATA"
+bucket_name = "ubrviewer-data"
+jurisdiction = "eu"
+preview_bucket_name = "ubrviewer-data-preview"
+
+[[env.production.r2_buckets]]
+binding = "UBR_DATA"
+bucket_name = "ubrviewer-data"
+jurisdiction = "eu"
